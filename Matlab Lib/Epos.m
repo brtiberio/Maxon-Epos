@@ -349,13 +349,16 @@ classdef Epos < handle
 			NumWords = 0;
 			[newByte, OK] = me.readBYTE();
 			if OK
-				if (newByte ~= me.ResponseCodes('E_ANS'))
+				% if (newByte ~= me.ResponseCodes('E_ANS')) Replaced to
+				% improve speed.
+				if (newByte ~= 0)
 					fprintf('[Epos.readAnswer]: Epos sent 0x%02X while was expecting a Answer frame start "0x%02X"\n'...
 						,newByte, me.ResponseCodes('E_ANS'));
 					return;
 				else
 					% Always ready, send ok in advance!
-					me.writeBYTE(me.ResponseCodes('E_OK'));
+					% me.writeBYTE(me.ResponseCodes('E_OK'));
+					me.writeBYTE(79);
 					% get len-1
 					[len_1, OK] = me.readBYTE();
 					if (OK)
@@ -368,9 +371,11 @@ classdef Epos < handle
 						end
 						crcMatch = me.CRCCheck(answer);
 						if crcMatch
-							me.writeBYTE(me.ResponseCodes('E_OK'));
+							% me.writeBYTE(me.ResponseCodes('E_OK'));
+							me.writeBYTE(79);
 						else
-							me.writeBYTE(me.ResponseCodes('E_FAIL'));
+							% me.writeBYTE(me.ResponseCodes('E_FAIL'));
+							me.writeBYTE(70);
 						end
 					end
 				end
@@ -491,7 +496,8 @@ classdef Epos < handle
 					fprintf('[Epos.SendCom]: failed to receive ready Ack...retries %d\n', retries);
 				end
 			end
-			if responseByte ~= me.ResponseCodes('E_OK')
+			% if responseByte ~= me.ResponseCodes('E_OK')
+			if responseByte ~= 79
 				OK = false;
 				fprintf(['[Epos.sendCom]: EPOS not ready, reply was 0x%02X\n',responseByte]);
 				return;
@@ -507,7 +513,8 @@ classdef Epos < handle
 			end
 			% wait for "End Ack" 'O'
 			[responseByte, OK] = me.readBYTE();
-			if responseByte == me.ResponseCodes('E_OK')
+			% if responseByte == me.ResponseCodes('E_OK')
+			if responseByte == 79
 				OK = true;
 				return;
 			end
@@ -531,7 +538,8 @@ classdef Epos < handle
 			%.. ======================================================================
 			validateattributes(index,{'uint16'},{'scalar'});
 			subindex = uint8(subindex);
-			header = hex2dec('1001'); % Allways fixed OpCode = 10, len-1 = 1
+			% header = hex2dec('1001'); % Allways fixed OpCode = 10, len-1 = 1
+			header = uint16(4097);
 			frame =uint16(zeros(4,1));
 			frame(1) = header;
 			frame(2) = index;
@@ -570,7 +578,8 @@ classdef Epos < handle
 			%     OK:      boolean if all went ok or not
 			%.. ======================================================================
 			validateattributes(index,{'uint16'},{'scalar'});
-			header = hex2dec('1103'); % allways fixed OpCode = 11, len-1 3
+			% header = hex2dec('1103'); % allways fixed OpCode = 11, len-1 3
+			header = uint16(4355);
 			frame = uint16(zeros(6,1));
 			frame(1) = header;
 			frame(2) = index;
@@ -613,31 +622,33 @@ classdef Epos < handle
 			E_error = typecast(E_error, 'uint32');
 
 			% CANopen defined error codes */
-			E_NOERR       = hex2dec('00000000');  % Error code: no error
-			E_ONOTEX      = hex2dec('06020000');  % Error code: object does not exist
-			E_SUBINEX     = hex2dec('06090011');  % Error code: subindex does not exist
-			E_OUTMEM      = hex2dec('05040005');  % Error code: out of memory
-			E_NOACCES     = hex2dec('06010000');  % Error code: Unsupported access to an object
-			E_WRITEONLY   = hex2dec('06010001');  % Error code: Attempt to read a write-only object
-			E_READONLY    = hex2dec('06010002');  % Error code: Attempt to write a read-only object
-			E_PARAMINCOMP = hex2dec('06040043');  % Error code: general parameter incompatibility
-			E_INTINCOMP   = hex2dec('06040047');  % Error code: general internal incompatibility in the device
-			E_HWERR       = hex2dec('06060000');  % Error code: access failed due to an hardware error
-			E_PRAGNEX     = hex2dec('06090030');  % Error code: value range of parameter exeeded
-			E_PARHIGH     = hex2dec('06090031');  % Error code: value of parameter written is too high
-			E_PARLOW      = hex2dec('06090032');  % Error code: value of parameter written is too low
-			E_PARREL      = hex2dec('06090036');  % Error code: maximum value is less than minimum value
-			E_GENERAL     = hex2dec('08000000');  % Error code: General error
-			E_NOSTORE     = hex2dec('08000020');  % Error code: Data cannot be transferred or stored to the application
-			E_WRONGLOCAL  = hex2dec('08000021');  % Error code: Data cannot be transferred or stored to the application because of local control
-			E_WRONGSTATE  = hex2dec('08000022');  % Error code: Wrong Device State
+			E_NOERR       = 0;         % hex2dec('00000000');  % Error code: no error
+			E_ONOTEX      = 100794368; % hex2dec('06020000');  % Error code: object does not exist
+			E_SUBINEX     = 101253137; % hex2dec('06090011');  % Error code: subindex does not exist
+			E_OUTMEM      = 84148229;  % hex2dec('05040005');  % Error code: out of memory
+			E_NOACCES     = 100728832; % hex2dec('06010000');  % Error code: Unsupported access to an object
+			E_WRITEONLY   = 100728833; % hex2dec('06010001');  % Error code: Attempt to read a write-only object
+			E_READONLY    = 100728834; % hex2dec('06010002');  % Error code: Attempt to write a read-only object
+			E_PARAMINCOMP = 100925507; % hex2dec('06040043');  % Error code: general parameter incompatibility
+			E_INTINCOMP   = 100925511; % hex2dec('06040047');  % Error code: general internal incompatibility in the device
+			E_HWERR       = 101056512; % hex2dec('06060000');  % Error code: access failed due to an hardware error
+			E_PRAGNEX     = 101253168; % hex2dec('06090030');  % Error code: value range of parameter exeeded
+			E_PARHIGH     = 101253169; % hex2dec('06090031');  % Error code: value of parameter written is too high
+			E_PARLOW      = 101253170; % hex2dec('06090032');  % Error code: value of parameter written is too low
+			E_PARREL      = 101253174; % hex2dec('06090036');  % Error code: maximum value is less than minimum value
+			E_GENERAL     = 134217728; % hex2dec('08000000');  % Error code: General error
+			E_NOSTORE     = 134217760; % hex2dec('08000020');  % Error code: Data cannot be transferred or stored to the application
+			E_WRONGLOCAL  = 134217761; % hex2dec('08000021');  % Error code: Data cannot be transferred or stored to the application because of local control
+			E_WRONGSTATE  = 134217762; % hex2dec('08000022');  % Error code: Wrong Device State
 
 			% maxon specific error codes */
-			E_NMTSTATE = hex2dec('0f00ffc0'); % Error code: wrong NMT state
-			E_RS232    = hex2dec('0f00ffbf'); % Error code: rs232 command illegeal
-			E_PASSWD   = hex2dec('0f00ffbe'); % Error code: password incorrect
-			E_NSERV    = hex2dec('0f00ffbc'); % Error code: device not in service mode
-			E_NODEID   = hex2dec('0f00fb9 '); % Error code: error in Node-ID
+			E_NMTSTATE = 251723712; % hex2dec('0f00ffc0'); % Error code: wrong NMT state
+			E_RS232    = 251723711; % hex2dec('0f00ffbf'); % Error code: rs232 command illegeal
+			E_PASSWD   = 251723710; % hex2dec('0f00ffbe'); % Error code: password incorrect
+			E_NSERV    = 251723708; % hex2dec('0f00ffbc'); % Error code: device not in service mode
+			E_NODEID   = 15732665;  % hex2dec('0f00fb9 '); % Error code: error in Node-ID
+			
+			
 
 			switch E_error
 				case E_NOERR
@@ -721,35 +732,35 @@ classdef Epos < handle
 
 			% list of errors
 			% E_NOERR                = hex2dec('0000'); %not used
-			E_GENERIC              = hex2dec('1000');
-			E_OVERCURRENT          = hex2dec('2310');
-			E_OVERVOLTAGE          = hex2dec('3210');
-			E_UNDERVOLTAGE         = hex2dec('3220');
-			E_OVERTEMPERATURE      = hex2dec('4210');
-			E_LOW5V                = hex2dec('5113');
-			E_INTERNALSW           = hex2dec('6100');
-			E_SWPARAM              = hex2dec('6320');
-			E_SENSORPOSITION       = hex2dec('7320');
-			E_CANOVERRUN_LOST      = hex2dec('8110');
-			E_CANOVERRUN           = hex2dec('8111');
-			E_CANPASSIVEMODE       = hex2dec('8120');
-			E_CANLIFEGUARD         = hex2dec('8130');
-			E_CANTRANSMITCOLLISION = hex2dec('8150');
-			E_CANBUSOFF            = hex2dec('81FD');
-			E_CANRXOVERRUN         = hex2dec('81FE');
-			E_CANTXOVERRUN         = hex2dec('81FF');
-			E_CANPDOLENGTH         = hex2dec('8210');
-			E_FOLLOWING            = hex2dec('8611');
-			E_HALLSENSOR           = hex2dec('FF01');
-			E_INDEXPROCESSING      = hex2dec('FF02');
-			E_ENCODERRESOLUTION    = hex2dec('FF03');
-			E_HALLSENSORNOTFOUND   = hex2dec('FF04');
-			E_NEGATIVELIMIT        = hex2dec('FF06');
-			E_POSITIVELIMIT        = hex2dec('FF07');
-			E_HALLANGLE            = hex2dec('FF08');
-			E_SWPOSITIONLIMIT      = hex2dec('FF09');
-			E_POSITIONSENSORBREACH = hex2dec('FF0A');
-			E_SYSTEMOVERLOADED     = hex2dec('FF0B');
+			E_GENERIC              = 04096;  % hex2dec('1000');
+			E_OVERCURRENT          = 08976;  % hex2dec('2310');
+			E_OVERVOLTAGE          = 12816; % hex2dec('3210');
+			E_UNDERVOLTAGE         = 12832; % hex2dec('3220');
+			E_OVERTEMPERATURE      = 16912; % hex2dec('4210');
+			E_LOW5V                = 20755; % hex2dec('5113');
+			E_INTERNALSW           = 24832; % hex2dec('6100');
+			E_SWPARAM              = 25376; % hex2dec('6320');
+			E_SENSORPOSITION       = 29472; % hex2dec('7320');
+			E_CANOVERRUN_LOST      = 33040; % hex2dec('8110');
+			E_CANOVERRUN           = 33041; % hex2dec('8111');
+			E_CANPASSIVEMODE       = 33056; % hex2dec('8120');
+			E_CANLIFEGUARD         = 33072; % hex2dec('8130');
+			E_CANTRANSMITCOLLISION = 33104; % hex2dec('8150');
+			E_CANBUSOFF            = 33277; % hex2dec('81FD');
+			E_CANRXOVERRUN         = 33278; % hex2dec('81FE');
+			E_CANTXOVERRUN         = 33279; % hex2dec('81FF');
+			E_CANPDOLENGTH         = 33296; % hex2dec('8210');
+			E_FOLLOWING            = 34321; % hex2dec('8611');
+			E_HALLSENSOR           = 65281; % hex2dec('FF01');
+			E_INDEXPROCESSING      = 65282; % hex2dec('FF02');
+			E_ENCODERRESOLUTION    = 65283; % hex2dec('FF03');
+			E_HALLSENSORNOTFOUND   = 65284; % hex2dec('FF04');
+			E_NEGATIVELIMIT        = 65286; % hex2dec('FF06');
+			E_POSITIVELIMIT        = 65287; % hex2dec('FF07');
+			E_HALLANGLE            = 65288; % hex2dec('FF08');
+			E_SWPOSITIONLIMIT      = 65289; % hex2dec('FF09');
+			E_POSITIONSENSORBREACH = 65290; % hex2dec('FF0A');
+			E_SYSTEMOVERLOADED     = 65291; % hex2dec('FF0B');
 
 			% check if there are any errors
 			index = me.objectIndex('ErrorHistory');
@@ -778,6 +789,7 @@ classdef Epos < handle
 				listErrors = 'No Errors'; % all OK
 				return;
 			else
+				listErrors = zeros(1,anyError);
 				for I=1:anyError
 					subindex = uint8(I);
 					[answer, OK] = me.readObject(index, subindex);
@@ -1391,7 +1403,8 @@ classdef Epos < handle
 				OK = false;
 				return;
 			else
-				index = me.objectIndex('PositionModeSettingValue');
+				% index = me.objectIndex('PositionModeSettingValue');
+				index = uint16(8290);
 				subindex = uint8(0);
 				data = typecast(int32(position), 'uint16');
 				[answer, OK] = me.writeObject(index, subindex, data);
@@ -3723,7 +3736,8 @@ classdef Epos < handle
 			%.. ======================================================================
 
 
-			index = me.objectIndex('PositionActualValue');
+			%index = me.objectIndex('PositionActualValue');
+			index = uint16(24676);
 			subindex = uint8(0);
 
 			[answer, OK] = me.readObject(index, subindex);
